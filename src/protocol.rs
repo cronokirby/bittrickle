@@ -13,6 +13,42 @@ pub enum ParseError {
 pub type ParseResult<T> = Result<T, ParseError>;
 
 
+/// Represents types that can be parsed from bytes
+pub trait FromBytes {
+    fn from_bytes(bytes: &[u8]) -> ParseResult<Self> where Self : Sized;
+}
+
+impl FromBytes for u32 {
+    fn from_bytes(bytes: &[u8]) -> ParseResult<u32> {
+        let len = bytes.len();
+        if len != 4 {
+            return Err(ParseError::BadSize { expected: 4, got: len });
+        }
+        let mut acc = 0;
+        for &byte in &bytes[..4] {
+            acc |= byte as u32;
+            acc <<= 8;
+        }
+        Ok(acc)
+    }
+}
+
+impl FromBytes for u64 {
+    fn from_bytes(bytes: &[u8]) -> ParseResult<u64> {
+        let len = bytes.len();
+        if len != 8 {
+            return Err(ParseError::BadSize { expected: 8, got: len });
+        }
+        let mut acc = 0;
+        for &byte in &bytes[..8] {
+            acc |= byte as u64;
+            acc <<= 8;
+        }
+        Ok(acc)
+    }
+}
+
+
 /// Used to communicate intent between the client and the tracker
 #[derive(Debug, Clone)]
 pub enum Action {
@@ -36,7 +72,6 @@ impl Action {
             _ => Err(ParseError::UnknownAction)
         }
     }
-
 }
 
 /// Represents an initial request from the client
