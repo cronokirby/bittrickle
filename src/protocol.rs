@@ -9,6 +9,7 @@ pub enum ParseError {
     }
 }
 
+
 /// A specialized `Result` for ParseErrors
 pub type ParseResult<T> = Result<T, ParseError>;
 
@@ -62,9 +63,10 @@ pub enum Action {
     Error
 }
 
-impl Action {
-    fn from_u32(u: u32) -> ParseResult<Self> {
-        match u {
+impl FromBytes for Action {
+    fn from_bytes(bytes: &[u8]) -> ParseResult<Action> {
+        let action_id: u32 = FromBytes::from_bytes(bytes)?;
+        match action_id {
             0 => Ok(Action::Connect),
             1 => Ok(Action::Announce),
             2 => Ok(Action::Scrape),
@@ -73,6 +75,7 @@ impl Action {
         }
     }
 }
+
 
 /// Represents an initial request from the client
 #[derive(Debug, Clone)]
@@ -85,19 +88,30 @@ pub struct ConnectRequest {
     transaction_id: u32
 }
 
-impl ConnectRequest {
-    fn from_bytes(data: &[u8]) -> ParseResult<Self> {
-        let len = data.len();
+impl FromBytes for ConnectRequest {
+    fn from_bytes(bytes: &[u8]) -> ParseResult<ConnectRequest> {
+        let len = bytes.len();
         if len != 16 {
             return Err(ParseError::BadSize { expected: 16, got: len });
         }
-        unimplemented!()
+        let protocol_id = FromBytes::from_bytes(bytes)?;
+        let action = FromBytes::from_bytes(&bytes[8..])?;
+        let transaction_id = FromBytes::from_bytes(&bytes[12..])?;
+        Ok(ConnectRequest { protocol_id, action, transaction_id })
     }
 }
+
 
 /// A random ID identifying a tracker connection
 #[derive(Debug, Copy, Clone)]
 pub struct ConnectionID(u64);
+
+impl FromBytes for ConnectionID {
+    fn from_bytes(bytes: &[u8]) -> ParseResult<ConnectionID> {
+        FromBytes::from_bytes(bytes).map(ConnectionID)
+    }
+}
+
 
 /// Represents the tracker response for a `ConnectRequest`
 #[derive(Debug, Clone)]
