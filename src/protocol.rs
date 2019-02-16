@@ -34,6 +34,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 
 
 /// Used to communicate intent between the client and the tracker
+/// The `Error` branch is removed, since it's only present in tracker responses
 #[derive(Debug, Clone)]
 pub enum Action {
     /// The client wishes to connect to the tracker
@@ -42,8 +43,6 @@ pub enum Action {
     Announce,
     /// The client wants to scrape from the tracker
     Scrape,
-    /// The tracker is reporting an error back to the client
-    Error
 }
 
 impl Action {
@@ -52,7 +51,6 @@ impl Action {
             0 => Ok(Action::Connect),
             1 => Ok(Action::Announce),
             2 => Ok(Action::Scrape),
-            3 => Ok(Action::Error),
             _ => Err(ParseError::UnknownAction)
         }
     }
