@@ -24,6 +24,8 @@ fn read_i64(bytes: &[u8]) -> i64 {
 pub enum ParseError {
     /// This action was unkown
     UnknownAction,
+    /// This announce event was unkown
+    UnkownAnnounceEvent,
     /// The byte size for the data was insufficient
     InsufficientBytes
 }
@@ -105,6 +107,7 @@ pub struct ConnectResponse {
     connection_id: ConnectionID
 }
 
+
 /// Represents the event type for an Announce
 #[derive(Debug, Clone)]
 pub enum AnnounceEvent {
@@ -117,6 +120,19 @@ pub enum AnnounceEvent {
     /// The client has stopped downloading the file
     Stopped
 }
+
+impl AnnounceEvent {
+    fn from_i32(num: i32) -> ParseResult<Self > {
+        match num {
+            0 => Ok(AnnounceEvent::Nothing),
+            1 => Ok(AnnounceEvent::Completed),
+            2 => Ok(AnnounceEvent::Started),
+            3 => Ok(AnnounceEvent::Stopped),
+            _ => Err(ParseError::UnkownAnnounceEvent)
+        }
+    }
+}
+
 
 #[derive(Debug, Clone)]
 pub struct AnnounceRequest {
