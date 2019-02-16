@@ -148,3 +148,15 @@ pub struct AnnounceRequest {
     /// Unused extension bytes
     extensions: u16
 }
+
+
+/// Represents a client's request to scrape
+#[derive(Debug, Clone)]
+pub struct ScrapeRequest {
+    /// The id identifying this connection
+    connection_id: ConnectionID,
+    /// The id identifying this transaction
+    transaction_id: TransactionID,
+    /// Info hashes to scrape
+    info_hashes: Vec<[u8; 20]>
+}
