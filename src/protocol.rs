@@ -176,3 +176,12 @@ pub struct ScrapeRequest {
     /// Info hashes to scrape
     info_hashes: Vec<[u8; 20]>
 }
+
+
+/// An enum for the different types of requests the client can make
+#[derive(Debug, Clone)]
+pub enum Request {
+    ConnectRequest(ConnectRequest),
+    AnnounceRequest(AnnounceRequest),
+    ScrapeRequest(ScrapeRequest)
+}
