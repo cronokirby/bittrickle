@@ -1,12 +1,33 @@
+/// Reads a u32 from a sequence of bytes, without checking length
+/// If the length is insufficient, subsequent bytes will be 0
+fn read_i32(bytes: &[u8]) -> i32 {
+    let mut acc = 0;
+    for &byte in &bytes[..4] {
+        acc |= byte as i32;
+        acc <<= 8;
+    }
+    acc
+}
+
+/// See `read_i32`
+fn read_i64(bytes: &[u8]) -> i64 {
+    let mut acc = 0;
+    for &byte in &bytes[..8] {
+        acc |= byte as i64;
+        acc <<= 8;
+    }
+    acc
+}
+
+
 /// Represents different parse errors for the protocol
 pub enum ParseError {
     /// This action was unkown
     UnknownAction,
-    /// The byte size for these bytes wasn't correct
-    BadSize {
-        expected: usize,
-        got: usize
-    }
+    /// This announce event was unkown
+    UnkownAnnounceEvent,
+    /// The byte size for the data was insufficient
+    InsufficientBytes
 }
 
 
@@ -14,43 +35,8 @@ pub enum ParseError {
 pub type ParseResult<T> = Result<T, ParseError>;
 
 
-/// Represents types that can be parsed from bytes
-pub trait FromBytes {
-    fn from_bytes(bytes: &[u8]) -> ParseResult<Self> where Self : Sized;
-}
-
-impl FromBytes for u32 {
-    fn from_bytes(bytes: &[u8]) -> ParseResult<u32> {
-        let len = bytes.len();
-        if len != 4 {
-            return Err(ParseError::BadSize { expected: 4, got: len });
-        }
-        let mut acc = 0;
-        for &byte in &bytes[..4] {
-            acc |= byte as u32;
-            acc <<= 8;
-        }
-        Ok(acc)
-    }
-}
-
-impl FromBytes for u64 {
-    fn from_bytes(bytes: &[u8]) -> ParseResult<u64> {
-        let len = bytes.len();
-        if len != 8 {
-            return Err(ParseError::BadSize { expected: 8, got: len });
-        }
-        let mut acc = 0;
-        for &byte in &bytes[..8] {
-            acc |= byte as u64;
-            acc <<= 8;
-        }
-        Ok(acc)
-    }
-}
-
-
 /// Used to communicate intent between the client and the tracker
+/// The `Error` branch is removed, since it's only present in tracker responses
 #[derive(Debug, Clone)]
 pub enum Action {
     /// The client wishes to connect to the tracker
@@ -59,20 +45,45 @@ pub enum Action {
     Announce,
     /// The client wants to scrape from the tracker
     Scrape,
-    /// The tracker is reporting an error back to the client
-    Error
 }
 
-impl FromBytes for Action {
-    fn from_bytes(bytes: &[u8]) -> ParseResult<Action> {
-        let action_id: u32 = FromBytes::from_bytes(bytes)?;
-        match action_id {
+impl Action {
+    fn from_i32(id: i32) -> ParseResult<Self> {
+        match id {
             0 => Ok(Action::Connect),
             1 => Ok(Action::Announce),
             2 => Ok(Action::Scrape),
-            3 => Ok(Action::Error),
             _ => Err(ParseError::UnknownAction)
         }
+    }
+}
+
+
+/// The transaction ID used by the client
+#[derive(Debug, Copy, Clone)]
+pub struct TransactionID(i32);
+
+
+/// A random ID used to confirm the identity of the client
+#[derive(Debug, Copy, Clone)]
+pub struct ConnectionID(i64);
+
+
+/// Useful for identifying which request we're dealing with
+#[derive(Debug, Clone)]
+pub struct RequestHeader {
+    connection_id: ConnectionID,
+    action: Action
+}
+
+impl RequestHeader {
+    fn from_bytes(bytes: &[u8]) -> ParseResult<Self> {
+        if bytes.len() < 12 {
+            return Err(ParseError::InsufficientBytes)
+        }
+        let connection_id = ConnectionID(read_i64(bytes));
+        let action = Action::from_i32(read_i32(&bytes[8..]))?;
+        Ok(RequestHeader { connection_id, action })
     }
 }
 
@@ -81,45 +92,96 @@ impl FromBytes for Action {
 #[derive(Debug, Clone)]
 pub struct ConnectRequest {
     /// Always a magic 0x41727101980
-    protocol_id: u64,
-    /// For valid requests, always be `Action::Connect`
-    action: Action,
+    connection_id: ConnectionID,
     /// The transaction ID identifying this client
-    transaction_id: u32
-}
-
-impl FromBytes for ConnectRequest {
-    fn from_bytes(bytes: &[u8]) -> ParseResult<ConnectRequest> {
-        let len = bytes.len();
-        if len != 16 {
-            return Err(ParseError::BadSize { expected: 16, got: len });
-        }
-        let protocol_id = FromBytes::from_bytes(bytes)?;
-        let action = FromBytes::from_bytes(&bytes[8..])?;
-        let transaction_id = FromBytes::from_bytes(&bytes[12..])?;
-        Ok(ConnectRequest { protocol_id, action, transaction_id })
-    }
-}
-
-
-/// A random ID identifying a tracker connection
-#[derive(Debug, Copy, Clone)]
-pub struct ConnectionID(u64);
-
-impl FromBytes for ConnectionID {
-    fn from_bytes(bytes: &[u8]) -> ParseResult<ConnectionID> {
-        FromBytes::from_bytes(bytes).map(ConnectionID)
-    }
+    transaction_id: TransactionID
 }
 
 
 /// Represents the tracker response for a `ConnectRequest`
 #[derive(Debug, Clone)]
 pub struct ConnectResponse {
-    /// Should always be 0
-    action: Action,
     /// The transaction ID identifying the client
-    transaction_id: u32,
+    transaction_id: TransactionID,
     /// The ID for this connection
     connection_id: ConnectionID
+}
+
+
+/// Represents the event type for an Announce
+#[derive(Debug, Clone)]
+pub enum AnnounceEvent {
+    /// Nothing new to report
+    Nothing,
+    /// The client has successfully downloaded the file
+    Completed,
+    /// The client has started to download the file
+    Started,
+    /// The client has stopped downloading the file
+    Stopped
+}
+
+impl AnnounceEvent {
+    fn from_i32(num: i32) -> ParseResult<Self > {
+        match num {
+            0 => Ok(AnnounceEvent::Nothing),
+            1 => Ok(AnnounceEvent::Completed),
+            2 => Ok(AnnounceEvent::Started),
+            3 => Ok(AnnounceEvent::Stopped),
+            _ => Err(ParseError::UnkownAnnounceEvent)
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct AnnounceRequest {
+    /// The ID identifying this connection
+    connection_id: ConnectionID,
+    /// The ID identifying this transaction
+    transaction_id: TransactionID,
+    /// Any bytes are valid for the info hash
+    info_hash: [u8; 20],
+    /// The ID the peer wishes to use
+    peer_id: [u8; 20],
+    /// How many bytes the client has downloaded
+    downloaded: i64,
+    /// How many bytes the client has left to download
+    left: i64,
+    /// How many bytes the client has uploaded this session
+    uploaded: i64,
+    /// The event the client is reporting
+    event: AnnounceEvent,
+    /// The 4 byte ip address the client would like us to use
+    ip: u32,
+    /// A 4 byte key to help identify the user
+    key: u32,
+    /// The number of peers to send to the client.
+    /// Negative indicates no preference
+    num_want: i32,
+    /// The port the client would like us to use
+    port: u16,
+    /// Unused extension bytes
+    extensions: u16
+}
+
+
+/// Represents a client's request to scrape
+#[derive(Debug, Clone)]
+pub struct ScrapeRequest {
+    /// The id identifying this connection
+    connection_id: ConnectionID,
+    /// The id identifying this transaction
+    transaction_id: TransactionID,
+    /// Info hashes to scrape
+    info_hashes: Vec<[u8; 20]>
+}
+
+
+/// An enum for the different types of requests the client can make
+#[derive(Debug, Clone)]
+pub enum Request {
+    ConnectRequest(ConnectRequest),
+    AnnounceRequest(AnnounceRequest),
+    ScrapeRequest(ScrapeRequest)
 }
