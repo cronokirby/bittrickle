@@ -91,7 +91,7 @@ pub struct ConnectionID(i64);
 
 /// Useful for identifying which request we're dealing with
 #[derive(Debug, Clone)]
-pub struct RequestHeader {
+struct RequestHeader {
     connection_id: ConnectionID,
     action: Action
 }
@@ -112,9 +112,9 @@ impl RequestHeader {
 #[derive(Debug, Clone)]
 pub struct ConnectRequest {
     /// Always a magic 0x41727101980
-    connection_id: ConnectionID,
+    pub connection_id: ConnectionID,
     /// The transaction ID identifying this client
-    transaction_id: TransactionID
+    pub transaction_id: TransactionID
 }
 
 impl ConnectRequest {
@@ -132,9 +132,9 @@ impl ConnectRequest {
 #[derive(Debug, Clone)]
 pub struct ConnectResponse {
     /// The transaction ID identifying the client
-    transaction_id: TransactionID,
+    pub transaction_id: TransactionID,
     /// The ID for this connection
-    connection_id: ConnectionID
+    pub connection_id: ConnectionID
 }
 
 
@@ -167,30 +167,30 @@ impl AnnounceEvent {
 #[derive(Debug, Clone)]
 pub struct AnnounceRequest {
     /// The ID identifying this connection
-    connection_id: ConnectionID,
+    pub connection_id: ConnectionID,
     /// The ID identifying this transaction
-    transaction_id: TransactionID,
+    pub transaction_id: TransactionID,
     /// Any bytes are valid for the info hash
-    info_hash: [u8; 20],
+    pub info_hash: [u8; 20],
     /// The ID the peer wishes to use
-    peer_id: [u8; 20],
+    pub peer_id: [u8; 20],
     /// How many bytes the client has downloaded
-    downloaded: i64,
+    pub downloaded: i64,
     /// How many bytes the client has left to download
-    left: i64,
+    pub left: i64,
     /// How many bytes the client has uploaded this session
-    uploaded: i64,
+    pub uploaded: i64,
     /// The event the client is reporting
-    event: AnnounceEvent,
+    pub event: AnnounceEvent,
     /// The 4 byte ip address the client would like us to use
-    ip: u32,
+    pub ip: u32,
     /// A 4 byte key to help identify the user
-    key: u32,
+    pub key: u32,
     /// The number of peers to send to the client.
     /// Negative indicates no preference
-    num_want: i32,
+    pub num_want: i32,
     /// The port the client would like us to use
-    port: u16
+    pub port: u16
 }
 
 impl AnnounceRequest {
@@ -225,11 +225,11 @@ impl AnnounceRequest {
 #[derive(Debug, Clone)]
 pub struct ScrapeRequest {
     /// The id identifying this connection
-    connection_id: ConnectionID,
+    pub connection_id: ConnectionID,
     /// The id identifying this transaction
-    transaction_id: TransactionID,
+    pub transaction_id: TransactionID,
     /// Info hashes to scrape
-    info_hashes: Vec<[u8; 20]>
+    pub info_hashes: Vec<[u8; 20]>
 }
 
 impl ScrapeRequest {
@@ -261,7 +261,7 @@ pub enum Request {
 }
 
 impl Request {
-    fn from_bytes(bytes: &[u8]) -> ParseResult<Self> {
+    pub fn from_bytes(bytes: &[u8]) -> ParseResult<Self> {
         let header = RequestHeader::from_bytes(bytes)?;
         match header.action {
             Action::Connect =>
