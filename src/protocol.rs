@@ -232,6 +232,25 @@ pub struct ScrapeRequest {
     info_hashes: Vec<[u8; 20]>
 }
 
+impl ScrapeRequest {
+    fn from_bytes(connection_id: ConnectionID, bytes: &[u8]) -> ParseResult<Self> {
+        let len = bytes.len();
+        if bytes.len() < 16  || (len - 16) % 20 != 0 {
+            return Err(ParseError::InsufficientBytes)
+        }
+        let transaction_id = TransactionID(read_i32(&bytes[12..]));
+        let mut info_hashes = Vec::with_capacity((len - 16) / 20);
+        let mut i = 16;
+        while i < len {
+            let mut hash = [0; 20];
+            hash.copy_from_slice(&bytes[i..]);
+            info_hashes.push(hash);
+            i += 20;
+        }
+        Ok(ScrapeRequest { connection_id, transaction_id, info_hashes })
+    }
+}
+
 
 /// An enum for the different types of requests the client can make
 #[derive(Debug, Clone)]
@@ -251,7 +270,9 @@ impl Request {
             Action::Announce =>
                 AnnounceRequest::from_bytes(header.connection_id, bytes)
                     .map(Request::AnnounceRequest),
-            _ => unimplemented!()
+            Action::Scrape =>
+                ScrapeRequest::from_bytes(header.connection_id, bytes)
+                    .map(Request::ScrapeRequest)
         }
     }
 }
