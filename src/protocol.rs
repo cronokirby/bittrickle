@@ -19,6 +19,26 @@ fn read_i64(bytes: &[u8]) -> i64 {
     acc
 }
 
+/// See `read_i32`
+fn read_u16(bytes: &[u8]) -> u16 {
+    let mut acc = 0;
+    for &byte in &bytes[..2] {
+        acc |= byte as u16;
+        acc <<= 8;
+    }
+    acc
+}
+
+/// See `read_i32`
+fn read_u32(bytes: &[u8]) -> u32 {
+    let mut acc = 0;
+    for &byte in &bytes[..4] {
+        acc |= byte as u32;
+        acc <<= 8;
+    }
+    acc
+}
+
 
 /// Represents different parse errors for the protocol
 pub enum ParseError {
@@ -97,6 +117,16 @@ pub struct ConnectRequest {
     transaction_id: TransactionID
 }
 
+impl ConnectRequest {
+    fn from_bytes(connection_id: ConnectionID, bytes: &[u8]) -> ParseResult<Self> {
+        if bytes.len() < 16 {
+            return Err(ParseError::InsufficientBytes);
+        }
+        let transaction_id = TransactionID(read_i32(&bytes[12..]));
+        Ok(ConnectRequest { connection_id, transaction_id })
+    }
+}
+
 
 /// Represents the tracker response for a `ConnectRequest`
 #[derive(Debug, Clone)]
@@ -160,9 +190,34 @@ pub struct AnnounceRequest {
     /// Negative indicates no preference
     num_want: i32,
     /// The port the client would like us to use
-    port: u16,
-    /// Unused extension bytes
-    extensions: u16
+    port: u16
+}
+
+impl AnnounceRequest {
+    fn from_bytes(connection_id: ConnectionID, bytes: &[u8]) -> ParseResult<Self> {
+        if bytes.len() < 98 {
+            return Err(ParseError::InsufficientBytes);
+        }
+        let mut info_hash = [0; 20];
+        info_hash.copy_from_slice(&bytes[16..]);
+        let mut peer_id = [0; 20];
+        peer_id.copy_from_slice(&bytes[36..]);
+        let event = AnnounceEvent::from_i32(read_i32(&bytes[80..]))?;
+        Ok(AnnounceRequest {
+            connection_id,
+            transaction_id: TransactionID(read_i32(&bytes[12..])),
+            info_hash,
+            peer_id,
+            downloaded: read_i64(&bytes[56..]),
+            left: read_i64(&bytes[64..]),
+            uploaded: read_i64(&bytes[72..]),
+            event,
+            ip: read_u32(&bytes[84..]),
+            key: read_u32(&bytes[88..]),
+            num_want: read_i32(&bytes[92..]),
+            port: read_u16(&bytes[96..])
+        })
+    }
 }
 
 
@@ -184,4 +239,19 @@ pub enum Request {
     ConnectRequest(ConnectRequest),
     AnnounceRequest(AnnounceRequest),
     ScrapeRequest(ScrapeRequest)
+}
+
+impl Request {
+    fn from_bytes(bytes: &[u8]) -> ParseResult<Self> {
+        let header = RequestHeader::from_bytes(bytes)?;
+        match header.action {
+            Action::Connect =>
+                ConnectRequest::from_bytes(header.connection_id, bytes)
+                    .map(Request::ConnectRequest),
+            Action::Announce =>
+                AnnounceRequest::from_bytes(header.connection_id, bytes)
+                    .map(Request::AnnounceRequest),
+            _ => unimplemented!()
+        }
+    }
 }
