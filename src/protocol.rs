@@ -3,8 +3,8 @@
 fn read_i32(bytes: &[u8]) -> i32 {
     let mut acc = 0;
     for &byte in &bytes[..4] {
-        acc |= byte as i32;
         acc <<= 8;
+        acc |= byte as i32;
     }
     acc
 }
@@ -13,8 +13,8 @@ fn read_i32(bytes: &[u8]) -> i32 {
 fn read_i64(bytes: &[u8]) -> i64 {
     let mut acc = 0;
     for &byte in &bytes[..8] {
-        acc |= byte as i64;
         acc <<= 8;
+        acc |= byte as i64;
     }
     acc
 }
@@ -23,8 +23,8 @@ fn read_i64(bytes: &[u8]) -> i64 {
 fn read_u16(bytes: &[u8]) -> u16 {
     let mut acc = 0;
     for &byte in &bytes[..2] {
-        acc |= byte as u16;
         acc <<= 8;
+        acc |= byte as u16;
     }
     acc
 }
@@ -33,14 +33,15 @@ fn read_u16(bytes: &[u8]) -> u16 {
 fn read_u32(bytes: &[u8]) -> u32 {
     let mut acc = 0;
     for &byte in &bytes[..4] {
-        acc |= byte as u32;
         acc <<= 8;
+        acc |= byte as u32;
     }
     acc
 }
 
 
 /// Represents different parse errors for the protocol
+#[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
     /// This action was unkown
     UnknownAction,
@@ -80,12 +81,12 @@ impl Action {
 
 
 /// The transaction ID used by the client
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct TransactionID(i32);
 
 
 /// A random ID used to confirm the identity of the client
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ConnectionID(i64);
 
 
@@ -109,7 +110,7 @@ impl RequestHeader {
 
 
 /// Represents an initial request from the client
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ConnectRequest {
     /// Always a magic 0x41727101980
     pub connection_id: ConnectionID,
@@ -139,7 +140,7 @@ pub struct ConnectResponse {
 
 
 /// Represents the event type for an Announce
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AnnounceEvent {
     /// Nothing new to report
     Nothing,
@@ -164,7 +165,7 @@ impl AnnounceEvent {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AnnounceRequest {
     /// The ID identifying this connection
     pub connection_id: ConnectionID,
@@ -222,7 +223,7 @@ impl AnnounceRequest {
 
 
 /// Represents a client's request to scrape
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ScrapeRequest {
     /// The id identifying this connection
     pub connection_id: ConnectionID,
@@ -253,7 +254,7 @@ impl ScrapeRequest {
 
 
 /// An enum for the different types of requests the client can make
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Request {
     ConnectRequest(ConnectRequest),
     AnnounceRequest(AnnounceRequest),
@@ -274,5 +275,27 @@ impl Request {
                 ScrapeRequest::from_bytes(header.connection_id, bytes)
                     .map(Request::ScrapeRequest)
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_connect() {
+        let bytes = [
+            0x00, 0x00, 0x04, 0x17, 0x27, 0x10, 0x19, 0x80,
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x10
+        ];
+        let request = Request::from_bytes(&bytes);
+        let connect_request = Request::ConnectRequest(ConnectRequest {
+            connection_id: ConnectionID(0x41727101980),
+            transaction_id: TransactionID(16)
+        });
+        assert!(request.is_ok());
+        assert_eq!(request.unwrap(), connect_request);
     }
 }
