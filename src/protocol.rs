@@ -200,9 +200,9 @@ impl AnnounceRequest {
             return Err(ParseError::InsufficientBytes);
         }
         let mut info_hash = [0; 20];
-        info_hash.copy_from_slice(&bytes[16..]);
+        info_hash.copy_from_slice(&bytes[16..36]);
         let mut peer_id = [0; 20];
-        peer_id.copy_from_slice(&bytes[36..]);
+        peer_id.copy_from_slice(&bytes[36..56]);
         let event = AnnounceEvent::from_i32(read_i32(&bytes[80..]))?;
         Ok(AnnounceRequest {
             connection_id,
@@ -244,7 +244,7 @@ impl ScrapeRequest {
         let mut i = 16;
         while i < len {
             let mut hash = [0; 20];
-            hash.copy_from_slice(&bytes[i..]);
+            hash.copy_from_slice(&bytes[i..20]);
             info_hashes.push(hash);
             i += 20;
         }
@@ -295,7 +295,41 @@ mod tests {
             connection_id: ConnectionID(0x41727101980),
             transaction_id: TransactionID(16)
         });
-        assert!(request.is_ok());
-        assert_eq!(request.unwrap(), connect_request);
+        assert_eq!(request, Ok(connect_request));
+    }
+
+    #[test]
+    fn parse_announce() {
+        let bytes = [
+            1, 2, 3, 4, 5, 6, 7, 8,
+            0, 0, 0, 1,
+            1, 2, 3, 4,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+            0, 0, 0, 0, 0, 0, 0, 1,
+            0, 0, 0, 0, 0, 0, 0, 1,
+            0, 0, 0, 0, 0, 0, 0, 1,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 1,
+            0, 0, 0, 1,
+            0, 1
+        ];
+        let request = Request::from_bytes(&bytes);
+        let announce_request = Request::AnnounceRequest(AnnounceRequest {
+            connection_id: ConnectionID(0x102030405060708),
+            transaction_id: TransactionID(0x1020304),
+            info_hash: [1; 20],
+            peer_id: [2; 20],
+            downloaded: 1,
+            left: 1,
+            uploaded: 1,
+            event: AnnounceEvent::Nothing,
+            ip: 0,
+            key: 1,
+            num_want: 1,
+            port: 1
+        });
+        assert_eq!(request, Ok(announce_request));
     }
 }
