@@ -257,9 +257,9 @@ impl ScrapeRequest {
 /// An enum for the different types of requests the client can make
 #[derive(Debug, Clone, PartialEq)]
 pub enum Request {
-    ConnectRequest(ConnectRequest),
-    AnnounceRequest(AnnounceRequest),
-    ScrapeRequest(ScrapeRequest)
+    Connect(ConnectRequest),
+    Announce(AnnounceRequest),
+    Scrape(ScrapeRequest)
 }
 
 impl Request {
@@ -268,13 +268,13 @@ impl Request {
         match header.action {
             Action::Connect =>
                 ConnectRequest::from_bytes(header.connection_id, bytes)
-                    .map(Request::ConnectRequest),
+                    .map(Request::Connect),
             Action::Announce =>
                 AnnounceRequest::from_bytes(header.connection_id, bytes)
-                    .map(Request::AnnounceRequest),
+                    .map(Request::Announce),
             Action::Scrape =>
                 ScrapeRequest::from_bytes(header.connection_id, bytes)
-                    .map(Request::ScrapeRequest)
+                    .map(Request::Scrape)
         }
     }
 }
@@ -292,7 +292,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x10
         ];
         let request = Request::from_bytes(&bytes);
-        let connect_request = Request::ConnectRequest(ConnectRequest {
+        let connect_request = Request::Connect(ConnectRequest {
             connection_id: ConnectionID(0x41727101980),
             transaction_id: TransactionID(16)
         });
@@ -317,7 +317,7 @@ mod tests {
             0, 1
         ];
         let request = Request::from_bytes(&bytes);
-        let announce_request = Request::AnnounceRequest(AnnounceRequest {
+        let announce_request = Request::Announce(AnnounceRequest {
             connection_id: ConnectionID(0x102030405060708),
             transaction_id: TransactionID(0x1020304),
             info_hash: [1; 20],
@@ -344,7 +344,7 @@ mod tests {
             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
         ];
         let request = Request::from_bytes(&bytes);
-        let scrape_request = Request::ScrapeRequest(ScrapeRequest {
+        let scrape_request = Request::Scrape(ScrapeRequest {
             connection_id: ConnectionID(0x102030405060708),
             transaction_id: TransactionID(0x1020304),
             info_hashes: vec![[1; 20], [2; 20]]
