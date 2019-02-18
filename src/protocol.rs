@@ -244,9 +244,10 @@ impl ScrapeRequest {
         let mut i = 16;
         while i < len {
             let mut hash = [0; 20];
-            hash.copy_from_slice(&bytes[i..20]);
+            let next_i = i + 20;
+            hash.copy_from_slice(&bytes[i..next_i]);
             info_hashes.push(hash);
-            i += 20;
+            i = next_i;
         }
         Ok(ScrapeRequest { connection_id, transaction_id, info_hashes })
     }
@@ -331,5 +332,23 @@ mod tests {
             port: 1
         });
         assert_eq!(request, Ok(announce_request));
+    }
+
+    #[test]
+    fn parse_scrape() {
+        let bytes = [
+            1, 2, 3, 4, 5, 6, 7, 8,
+            0, 0, 0, 2,
+            1, 2, 3, 4,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        ];
+        let request = Request::from_bytes(&bytes);
+        let scrape_request = Request::ScrapeRequest(ScrapeRequest {
+            connection_id: ConnectionID(0x102030405060708),
+            transaction_id: TransactionID(0x1020304),
+            info_hashes: vec![[1; 20], [2; 20]]
+        });
+        assert_eq!(request, Ok(scrape_request));
     }
 }
