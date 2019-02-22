@@ -40,6 +40,35 @@ fn read_u32(bytes: &[u8]) -> u32 {
 }
 
 
+/// Write a u32 to a buffer, that must be at least 4 bytes long
+fn write_u32(num: u32, buf: &mut [u8]) {
+    buf[0] = (num >> 24) as u8;
+    buf[1] = (num >> 16 ) as u8;
+    buf[2] = (num >> 8) as u8;
+    buf[3] = num as u8;
+}
+
+/// See write_u32
+fn write_i64(num: i64, buf: &mut [u8]) {
+    buf[0] = (num >> 56) as u8;
+    buf[1] = (num >> 48) as u8;
+    buf[2] = (num >> 40) as u8;
+    buf[3] = (num >> 32) as u8;
+    buf[4] = (num >> 24) as u8;
+    buf[5] = (num >> 16) as u8;
+    buf[6] = (num >> 8) as u8;
+    buf[7] = num as u8;
+}
+
+/// See write_u32
+fn write_i32(num: i32, buf: &mut [u8]) {
+    buf[0] = (num >> 24) as u8;
+    buf[1] = (num >> 16 ) as u8;
+    buf[2] = (num >> 8) as u8;
+    buf[3] = num as u8;
+}
+
+
 /// Represents different parse errors for the protocol
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -136,6 +165,17 @@ pub struct ConnectResponse {
     pub transaction_id: TransactionID,
     /// The ID for this connection
     pub connection_id: ConnectionID
+}
+
+impl ConnectResponse {
+    /// Write a response to a buffer, returning the number of bytes written
+    /// The buffer should be at least 16 bytes long
+    fn write(&self, buf: &mut [u8]) -> usize {
+        write_u32(0, buf);
+        write_i32(self.transaction_id.0, &mut buf[4..]);
+        write_i64(self.connection_id.0, &mut buf[8..]);
+        16
+    }
 }
 
 

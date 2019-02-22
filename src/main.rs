@@ -1,8 +1,13 @@
 mod protocol;
 use protocol::Request;
 
-use std::net::UdpSocket;
+use std::net::{SocketAddr, UdpSocket};
 
+
+fn handle_request(src: SocketAddr, request: &Request) {
+    println!("New request from {:?}", src);
+    println!("{:?}", request);
+}
 
 fn main() -> std::io::Result<()> {
     let mut socket = UdpSocket::bind("127.0.0.1:8080")?;
@@ -10,8 +15,7 @@ fn main() -> std::io::Result<()> {
     loop {
         let (amt, src) = socket.recv_from(&mut buffer)?;
         let request = Request::from_bytes(&buffer[..amt]);
-        println!("New request from {:?}", src);
-        println!("{:?}", request);
+        request.map(|r| handle_request(src, &r));
     }
     Ok(())
 }
