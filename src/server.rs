@@ -5,11 +5,6 @@ use std::net::{ToSocketAddrs, SocketAddr, UdpSocket};
 use crate::protocol::{ConnectionID, ConnectResponse, Request, Writable};
 
 
-fn handle_request(src: SocketAddr, request: &Request) {
-    println!("New request from {:?}", src);
-    println!("{:?}", request);
-}
-
 /// Holds all the state a server needs to run
 pub struct Server {
     rng: ThreadRng,
@@ -37,7 +32,7 @@ impl Server {
             let (amt, src) = self.socket.recv_from(&mut self.read_buf)?;
             let request = Request::from_bytes(&self.read_buf[..amt]);
             if let Ok(r) = request {
-                self.handle_request(src, &r);
+                self.handle_request(src, &r)?;
             }
         }
     }
