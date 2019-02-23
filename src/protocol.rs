@@ -42,6 +42,13 @@ fn read_u32(bytes: &[u8]) -> u32 {
 }
 
 
+/// Represents things we can write too
+pub trait Writable {
+    /// Write this object to a buffer, returning the number of bytes written
+    fn write(&self, buf: &mut [u8]) -> usize;
+}
+
+
 /// Write a u32 to a buffer, that must be at least 4 bytes long
 fn write_u32(num: u32, buf: &mut [u8]) {
     buf[0] = (num >> 24) as u8;
@@ -115,14 +122,19 @@ impl Action {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct TransactionID(i32);
 
-
 /// A random ID used to confirm the identity of the client
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ConnectionID(i64);
 
 impl ConnectionID {
+    /// Construct a new random ConnectionID
     pub fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
         ConnectionID(rng.gen())
+    }
+    
+    /// Check if this connection id is the magic one the client says
+    pub fn is_magic_id(&self) -> bool {
+        self.0 == 0x41727101980
     }
 }
 
@@ -175,8 +187,7 @@ pub struct ConnectResponse {
     pub connection_id: ConnectionID
 }
 
-impl ConnectResponse {
-    /// Write a response to a buffer, returning the number of bytes written
+impl Writable for ConnectResponse {
     /// The buffer should be at least 16 bytes long
     fn write(&self, buf: &mut [u8]) -> usize {
         write_u32(0, buf);
