@@ -1,3 +1,5 @@
+use rand::Rng;
+
 /// Reads a u32 from a sequence of bytes, without checking length
 /// If the length is insufficient, subsequent bytes will be 0
 fn read_i32(bytes: &[u8]) -> i32 {
@@ -117,6 +119,12 @@ pub struct TransactionID(i32);
 /// A random ID used to confirm the identity of the client
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ConnectionID(i64);
+
+impl ConnectionID {
+    pub fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        ConnectionID(rng.gen())
+    }
+}
 
 
 /// Useful for identifying which request we're dealing with
