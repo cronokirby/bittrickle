@@ -1,4 +1,5 @@
 use rand::Rng;
+use std::net::{SocketAddrV4};
 
 /// Reads a u32 from a sequence of bytes, without checking length
 /// If the length is insufficient, subsequent bytes will be 0
@@ -75,6 +76,12 @@ fn write_i32(num: i32, buf: &mut [u8]) {
     buf[1] = (num >> 16 ) as u8;
     buf[2] = (num >> 8) as u8;
     buf[3] = num as u8;
+}
+
+/// See write_u16
+fn write_u16(num: u16, buf: &mut [u8]) {
+    buf[0] = (num >> 8) as u8;
+    buf[1] = num as u8;
 }
 
 
@@ -277,6 +284,38 @@ impl AnnounceRequest {
             num_want: read_i32(&bytes[92..]),
             port: read_u16(&bytes[96..])
         })
+    }
+}
+
+/// Represents the response to the Announce Request
+#[derive(Debug, Clone)]
+pub struct AnnounceResponse {
+    /// The transaction id matching the client
+    pub transaction_id: TransactionID,
+    /// The interval in seconds we want the client to respond with
+    pub interval: i32,
+    /// How many peers are still downloading the file
+    pub leechers: i32,
+    /// How many peers have finished downloading the file
+    pub seeders: i32,
+    /// The peers we're sending in this response
+    pub peers: Vec<SocketAddrV4>
+}
+
+impl Writable for AnnounceResponse {
+    fn write(&self, buf: &mut [u8]) -> usize {
+        write_u32(1, buf);
+        write_i32(self.transaction_id.0, &mut buf[4..]);
+        write_i32(self.interval, &mut buf[8..]);
+        write_i32(self.leechers, &mut buf[12..]);
+        write_i32(self.seeders, &mut buf[16..]);
+        let mut i = 20;
+        for peer in &self.peers {
+            write_u32(u32::from(*peer.ip()), &mut buf[i..]);
+            write_u16(peer.port(), &mut buf[i + 4..]);
+            i += 6;
+        }
+        20 + 6 * self.peers.len()
     }
 }
 
