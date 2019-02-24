@@ -4,8 +4,8 @@ use std::io;
 use std::net::{ToSocketAddrs, SocketAddr, SocketAddrV4, UdpSocket};
 
 use crate::protocol::{
-    AnnounceRequest, AnnounceResponse, ConnectionID, ConnectResponse,
-    ConnectRequest, InfoHash, Request, 
+    AnnounceRequest, AnnounceEvent, AnnounceResponse,
+    ConnectionID, ConnectResponse, ConnectRequest, InfoHash, Request, 
     ScrapeInfo, ScrapeResponse, ScrapeRequest, Writable
 };
 
@@ -21,11 +21,25 @@ struct TorrentInfo {
 
 impl TorrentInfo {
     /// Add a new peer to an existing torrent
-    fn add_new_peer(&mut self, peer: SocketAddr) {
+    fn handle_peer(&mut self, peer: SocketAddr, event: AnnounceEvent) {
+        let mut should_handle = false;
         match peer {
             SocketAddr::V4(ip) => { 
-                if self.peers.insert(ip) {
-                    self.leechers += 1;
+                match event {
+                    AnnounceEvent::Nothing => {}
+                    AnnounceEvent::Completed => {
+                        self.leechers -= 1;
+                        self.seeders += 1;
+                        self.completed += 1;
+                    }
+                    AnnounceEvent::Started => {
+                        if self.peers.insert(ip) {
+                            self.leechers += 1;
+                        }
+                    }
+                    AnnounceEvent::Stopped => {
+                        self.leechers -= 1;
+                    }
                 }
             }
             // We don't handle v6 address
@@ -132,7 +146,7 @@ impl Server {
         if Some(&req.connection_id) == self.connections.get(&src) {
             let info = match self.torrents.get_mut(&req.info_hash) {
                 Some(info) => {
-                    info.add_new_peer(src);
+                    info.handle_peer(src, req.event);
                     info.clone()
                 }
                 None => {

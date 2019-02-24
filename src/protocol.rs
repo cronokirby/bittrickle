@@ -209,7 +209,7 @@ impl Writable for ConnectResponse {
 
 
 /// Represents the event type for an Announce
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AnnounceEvent {
     /// Nothing new to report
     Nothing,
