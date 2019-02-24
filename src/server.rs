@@ -13,6 +13,7 @@ use crate::protocol::{
 #[derive(Clone, Debug)]
 struct TorrentInfo {
     leechers: i32,
+    completed: i32,
     seeders: i32,
     peers: HashSet<SocketAddrV4>
 }
@@ -34,7 +35,7 @@ impl TorrentInfo {
     /// Create a torrent from the first peer to announce it
     fn from_first_peer(peer: SocketAddr) -> Self {
         let mut info = TorrentInfo {
-            leechers: 0, seeders: 0, peers: HashSet::new()
+            leechers: 0, completed: 0, seeders: 0, peers: HashSet::new()
         };
         match peer {
             SocketAddr::V4(ip) => {

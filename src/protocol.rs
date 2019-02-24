@@ -354,6 +354,33 @@ impl ScrapeRequest {
     }
 }
 
+/// An individual part of a scrape response
+#[derive(Clone, Debug)]
+pub struct ScrapeInfo {
+    /// How many seeders are on this torrent
+    seeders: i32,
+    /// How many people have successfully completed this torrent
+    completed: i32,
+    /// How many people are leeching this torrent
+    leechers: i32
+}
+
+impl ScrapeInfo {
+    /// The information for a non existent torrent
+    pub fn empty() -> Self {
+        ScrapeInfo { seeders: 0, completed: 0, leechers: 0}
+    }
+}
+
+/// Represents our response to the client
+#[derive(Debug, Clone)]
+pub struct ScrapeResponse {
+    /// The tranasction id for the client
+    pub transaction_id: TransactionID,
+    /// The information for each torrent the client requested
+    pub scrapes: Vec<ScrapeInfo>
+}
+
 
 /// An enum for the different types of requests the client can make
 #[derive(Debug, Clone, PartialEq)]
