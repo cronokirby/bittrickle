@@ -358,11 +358,11 @@ impl ScrapeRequest {
 #[derive(Clone, Debug)]
 pub struct ScrapeInfo {
     /// How many seeders are on this torrent
-    seeders: i32,
+    pub seeders: i32,
     /// How many people have successfully completed this torrent
-    completed: i32,
+    pub completed: i32,
     /// How many people are leeching this torrent
-    leechers: i32
+    pub leechers: i32
 }
 
 impl ScrapeInfo {
@@ -379,6 +379,21 @@ pub struct ScrapeResponse {
     pub transaction_id: TransactionID,
     /// The information for each torrent the client requested
     pub scrapes: Vec<ScrapeInfo>
+}
+
+impl Writable for ScrapeResponse {
+    fn write(&self, buf: &mut [u8]) -> usize {
+        write_u32(2, buf);
+        write_i32(self.transaction_id.0, &mut buf[4..]);
+        let mut i = 8;
+        for scrape in &self.scrapes {
+            write_i32(scrape.seeders, &mut buf[i..]);
+            write_i32(scrape.completed, &mut buf[i + 4..]);
+            write_i32(scrape.leechers, &mut buf[i + 8..]);
+            i += 12; 
+        }
+        8 + 12 * self.scrapes.len()
+    }
 }
 
 

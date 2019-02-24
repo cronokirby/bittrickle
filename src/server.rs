@@ -5,7 +5,8 @@ use std::net::{ToSocketAddrs, SocketAddr, SocketAddrV4, UdpSocket};
 
 use crate::protocol::{
     AnnounceRequest, AnnounceResponse, ConnectionID, ConnectResponse,
-    ConnectRequest, InfoHash, Request, ScrapeRequest, Writable
+    ConnectRequest, InfoHash, Request, 
+    ScrapeInfo, ScrapeResponse, ScrapeRequest, Writable
 };
 
 
@@ -154,6 +155,23 @@ impl Server {
     }
 
     fn handle_scrape(&mut self, src: SocketAddr, req: &ScrapeRequest) -> io::Result<()> {
+        if Some(&req.connection_id) == self.connections.get(&src) {
+            let mut scrapes = Vec::with_capacity(self.torrents.len());
+            for hash in &req.info_hashes {
+                let scrape = match self.torrents.get(hash) {
+                    Some(info) => ScrapeInfo {
+                        seeders: info.seeders,
+                        completed: info.completed,
+                        leechers: info.leechers
+                    },
+                    None => ScrapeInfo::empty()
+                };
+                scrapes.push(scrape);
+            }
+            let transaction_id = req.transaction_id;
+            let response = ScrapeResponse { transaction_id, scrapes };
+            self.write_to_socket(response, src)?;
+        }
         Ok(())
     }
 }
