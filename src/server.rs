@@ -44,6 +44,14 @@ impl TorrentInfo {
         }
         info
     }
+    
+    fn sample_peers(&self) -> Vec<SocketAddrV4> {
+        let mut acc = Vec::with_capacity(self.peers.len());
+        for &p in &self.peers {
+            acc.push(p);
+        }
+        acc
+    }
 }
 
 
