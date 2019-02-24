@@ -145,6 +145,9 @@ impl ConnectionID {
     }
 }
 
+/// Used to hold info hashes identifying a torrent
+pub type InfoHash = [u8; 20];
+
 
 /// Useful for identifying which request we're dealing with
 #[derive(Debug, Clone)]
@@ -238,7 +241,7 @@ pub struct AnnounceRequest {
     /// The ID identifying this transaction
     pub transaction_id: TransactionID,
     /// Any bytes are valid for the info hash
-    pub info_hash: [u8; 20],
+    pub info_hash: InfoHash,
     /// The ID the peer wishes to use
     pub peer_id: [u8; 20],
     /// How many bytes the client has downloaded
@@ -328,7 +331,7 @@ pub struct ScrapeRequest {
     /// The id identifying this transaction
     pub transaction_id: TransactionID,
     /// Info hashes to scrape
-    pub info_hashes: Vec<[u8; 20]>
+    pub info_hashes: Vec<InfoHash>
 }
 
 impl ScrapeRequest {

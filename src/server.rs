@@ -1,15 +1,16 @@
 use rand::{prelude::ThreadRng, thread_rng};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::net::{ToSocketAddrs, SocketAddr, SocketAddrV4, UdpSocket};
 
 use crate::protocol::{
-    AnnounceRequest, ConnectionID, ConnectResponse, ConnectRequest, Request,
-    ScrapeRequest, Writable
+    AnnounceRequest, AnnounceResponse, ConnectionID, ConnectResponse,
+    ConnectRequest, InfoHash, Request, ScrapeRequest, Writable
 };
 
 
 /// Represents the information associated with the torrent
+#[derive(Clone, Debug)]
 struct TorrentInfo {
     leechers: i32,
     seeders: i32,
@@ -60,7 +61,9 @@ pub struct Server {
     rng: ThreadRng,
     socket: UdpSocket,
     read_buf: Vec<u8>,
-    write_buf: Vec<u8>
+    write_buf: Vec<u8>,
+    connections: HashMap<SocketAddr, ConnectionID>,
+    torrents: HashMap<InfoHash, TorrentInfo>
 }
 
 impl Server {
@@ -72,7 +75,11 @@ impl Server {
         let socket = UdpSocket::bind(addr)?;
         let read_buf = vec![0; 2048];
         let write_buf = vec![0; 2048];
-        Ok(Server { rng, socket, read_buf, write_buf })
+        let connections = HashMap::new();
+        let torrents = HashMap::new();
+        Ok(Server { 
+            rng, socket, read_buf, write_buf, connections, torrents 
+         })
     }
 
     /// Run the server, blocking the current thread
@@ -114,11 +121,34 @@ impl Server {
                 transaction_id, connection_id
             };
             self.write_to_socket(response, src)?;
+            self.connections.insert(src, connection_id);
         }
         Ok(())
     }
 
     fn handle_announce(&mut self, src: SocketAddr, req: &AnnounceRequest) -> io::Result<()> {
+        if Some(&req.connection_id) == self.connections.get(&src) {
+            let info = match self.torrents.get_mut(&req.info_hash) {
+                Some(info) => {
+                    info.add_new_peer(src);
+                    info.clone()
+                }
+                None => {
+                    let info = TorrentInfo::from_first_peer(src);
+                    self.torrents.insert(req.info_hash, info.clone());
+                    info
+                }
+            };
+            let transaction_id = req.transaction_id;
+            let interval = 15 * 60;
+            let leechers = info.leechers;
+            let seeders = info.seeders;
+            let peers = info.sample_peers();
+            let response = AnnounceResponse {
+                transaction_id, interval, leechers, seeders, peers
+            };
+            self.write_to_socket(response, src)?;
+        }
         Ok(())
     }
 
