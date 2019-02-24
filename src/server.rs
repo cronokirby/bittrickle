@@ -2,7 +2,10 @@ use rand::{prelude::ThreadRng, thread_rng};
 use std::io;
 use std::net::{ToSocketAddrs, SocketAddr, UdpSocket};
 
-use crate::protocol::{ConnectionID, ConnectResponse, Request, Writable};
+use crate::protocol::{
+    AnnounceRequest, ConnectionID, ConnectResponse, ConnectRequest, Request,
+    ScrapeRequest, Writable
+};
 
 
 /// Holds all the state a server needs to run
@@ -49,19 +52,30 @@ impl Server {
     
     fn handle_request(&mut self, src: SocketAddr, request: &Request) -> io::Result<()> {
         match request {
-            Request::Connect(r) => {
-                // We do nothing if the magic id is wrong
-                if r.connection_id.is_magic_id() {
-                    let connection_id = ConnectionID::random(&mut self.rng);
-                    let transaction_id = r.transaction_id;
-                    let response = ConnectResponse {
-                        transaction_id, connection_id
-                    };
-                    self.write_to_socket(response, src)?;
-                }
-            }
-            _ => {}
+            Request::Connect(r) => self.handle_connect(src, r),
+            Request::Announce(r) => self.handle_announce(src, r),
+            Request::Scrape(r) => self.handle_scrape(src, r)
         }
+    }
+
+    fn handle_connect(&mut self, src: SocketAddr, req: &ConnectRequest) -> io::Result<()> {
+        // We do nothing if the magic id is wrong
+        if req.connection_id.is_magic_id() {
+            let connection_id = ConnectionID::random(&mut self.rng);
+            let transaction_id = req.transaction_id;
+            let response = ConnectResponse {
+                transaction_id, connection_id
+            };
+            self.write_to_socket(response, src)?;
+        }
+        Ok(())
+    }
+
+    fn handle_announce(&mut self, src: SocketAddr, req: &AnnounceRequest) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn handle_scrape(&mut self, src: SocketAddr, req: &ScrapeRequest) -> io::Result<()> {
         Ok(())
     }
 }
