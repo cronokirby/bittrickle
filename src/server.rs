@@ -1,11 +1,50 @@
 use rand::{prelude::ThreadRng, thread_rng};
+use std::collections::HashSet;
 use std::io;
-use std::net::{ToSocketAddrs, SocketAddr, UdpSocket};
+use std::net::{ToSocketAddrs, SocketAddr, SocketAddrV4, UdpSocket};
 
 use crate::protocol::{
     AnnounceRequest, ConnectionID, ConnectResponse, ConnectRequest, Request,
     ScrapeRequest, Writable
 };
+
+
+/// Represents the information associated with the torrent
+struct TorrentInfo {
+    leechers: i32,
+    seeders: i32,
+    peers: HashSet<SocketAddrV4>
+}
+
+impl TorrentInfo {
+    /// Add a new peer to an existing torrent
+    fn add_new_peer(&mut self, peer: SocketAddr) {
+        match peer {
+            SocketAddr::V4(ip) => { 
+                if self.peers.insert(ip) {
+                    self.leechers += 1;
+                }
+            }
+            // We don't handle v6 address
+            SocketAddr::V6(_) => {}
+        }
+    }
+
+    /// Create a torrent from the first peer to announce it
+    fn from_first_peer(peer: SocketAddr) -> Self {
+        let mut info = TorrentInfo {
+            leechers: 0, seeders: 0, peers: HashSet::new()
+        };
+        match peer {
+            SocketAddr::V4(ip) => {
+                info.peers.insert(ip);
+                info.seeders += 1;
+            }
+            SocketAddr::V6(_) => {}
+        }
+        info
+    }
+}
 
 
 /// Holds all the state a server needs to run
