@@ -1,4 +1,4 @@
-use rand::{prelude::ThreadRng, thread_rng};
+use rand::{prelude::ThreadRng, thread_rng, Rng, seq::SliceRandom};
 use std::collections::{HashMap};
 use std::io;
 use std::net::{ToSocketAddrs, SocketAddr, SocketAddrV4, UdpSocket};
@@ -76,12 +76,8 @@ impl TorrentInfo {
         info
     }
     
-    fn sample_peers(&self) -> Vec<SocketAddrV4> {
-        let mut acc = Vec::with_capacity(self.peers.len());
-        for &p in &self.peers {
-            acc.push(p);
-        }
-        acc
+    fn sample_peers<R: Rng>(&self, rng: &mut R, amount: usize) -> Vec<SocketAddrV4> {
+        self.peers.choose_multiple(rng, amount).cloned().collect()
     }
 }
 
@@ -173,7 +169,7 @@ impl Server {
             let interval = 15 * 60;
             let leechers = info.leechers;
             let seeders = info.seeders;
-            let peers = info.sample_peers();
+            let peers = info.sample_peers(&mut self.rng, 50);
             let response = AnnounceResponse {
                 transaction_id, interval, leechers, seeders, peers
             };
