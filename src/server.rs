@@ -1,5 +1,5 @@
 use rand::{prelude::ThreadRng, thread_rng};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::io;
 use std::net::{ToSocketAddrs, SocketAddr, SocketAddrV4, UdpSocket};
 
@@ -16,15 +16,28 @@ struct TorrentInfo {
     leechers: i32,
     completed: i32,
     seeders: i32,
-    peers: HashSet<SocketAddrV4>
+    peers: Vec<SocketAddrV4>
 }
 
 impl TorrentInfo {
+    /// Try and insert a socket address into our set of peers
+    fn insert(&mut self, sock: SocketAddrV4) -> bool {
+        let search_res = self.peers.binary_search_by(|probe| {
+            (probe.ip(), probe.port()).cmp(&(sock.ip(), sock.port()))
+        });
+        match search_res {
+            Ok(_) => false,
+            Err(insert_i) => {
+                self.peers.insert(insert_i, sock);
+                true
+            }
+        }
+    }
+
     /// Add a new peer to an existing torrent
     fn handle_peer(&mut self, peer: SocketAddr, event: AnnounceEvent) {
-        let mut should_handle = false;
         match peer {
-            SocketAddr::V4(ip) => { 
+            SocketAddr::V4(sock) => { 
                 match event {
                     AnnounceEvent::Nothing => {}
                     AnnounceEvent::Completed => {
@@ -33,7 +46,7 @@ impl TorrentInfo {
                         self.completed += 1;
                     }
                     AnnounceEvent::Started => {
-                        if self.peers.insert(ip) {
+                        if self.insert(sock) {
                             self.leechers += 1;
                         }
                     }
@@ -50,12 +63,13 @@ impl TorrentInfo {
     /// Create a torrent from the first peer to announce it
     fn from_first_peer(peer: SocketAddr) -> Self {
         let mut info = TorrentInfo {
-            leechers: 0, completed: 0, seeders: 0, peers: HashSet::new()
+            leechers: 0, completed: 0, seeders: 0, peers: Vec::new()
         };
         match peer {
-            SocketAddr::V4(ip) => {
-                info.peers.insert(ip);
-                info.seeders += 1;
+            SocketAddr::V4(sock) => {
+                if info.insert(sock) {
+                    info.seeders += 1;
+                }
             }
             SocketAddr::V6(_) => {}
         }
